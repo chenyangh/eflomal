@@ -70,6 +70,11 @@ typedef double count;
 #define MIN(x,y)    (((x)<(y))?(x):(y))
 #define MAX(x,y)    (((x)>(y))?(x):(y))
 
+typedef struct {
+    count *scores; // Dynamic array to store scores
+    size_t total_size; // Total number of scores
+} AlignmentScores;
+
 struct sentence {
     link_t length;
     token tokens[];
@@ -324,6 +329,21 @@ void text_alignment_sample(
         const token *source_tokens = source_sentence->tokens;
         const token *target_tokens = target_sentence->tokens;
 
+        // Allocate memory for AlignmentScores
+        AlignmentScores *alignmentScores = malloc(sizeof(AlignmentScores));
+        if (!alignmentScores) {
+            // handle memory allocation failure
+            exit(EXIT_FAILURE);
+        }
+        // Assuming source_length and target_length are defined and represent the lengths of the respective sentences
+        alignmentScores->total_size = source_length * target_length;
+        alignmentScores->scores = malloc(sizeof(count) * alignmentScores->total_size);
+        if (!alignmentScores->scores) {
+            // handle memory allocation failure
+            free(alignmentScores);
+            exit(EXIT_FAILURE);
+        }
+
         int samples_left = n_samples-1;
         int samplers_left = n_samplers-1;
 
@@ -507,6 +527,7 @@ resample:;
                     count max_p = 0.0;
                     for (size_t i=0; i<source_length; i++) {
                         const count p = ps[i] - (i? ps[i-1]: 0.0);
+                        alignmentScores[j * source_length + i] = p;
                         if (p > max_p) max_p = p;
                     }
                     sentence_scores[sent] += logf(
@@ -632,6 +653,15 @@ resample:;
         }
         if (sentence_scores != NULL)
             sentence_scores[sent] /= (count)target_length;
+
+        for (size_t i = 0; i < source_length; ++i) {
+            for (size_t j = 0; j < target_length; ++j) {
+                count score = alignmentScores->scores[j * source_length + i];
+                printf("Score(Source[%zu], Target[%zu]) = %f\n", i, j, score);
+            }
+        }
+        free(alignmentScores->scores);
+        free(alignmentScores)
 
         if (argmax) {
             if (samplers_left) {
