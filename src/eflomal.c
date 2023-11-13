@@ -70,10 +70,11 @@ typedef double count;
 #define MIN(x,y)    (((x)<(y))?(x):(y))
 #define MAX(x,y)    (((x)>(y))?(x):(y))
 
-typedef struct {
-    count *scores; // Dynamic array to store scores
-    size_t total_size; // Total number of scores
-} AlignmentScores;
+// typedef struct {
+//     count *scores; // Dynamic array to store scores
+//     size_t total_size; // Total number of scores
+// } AlignmentScores;
+
 
 struct sentence {
     link_t length;
@@ -237,6 +238,8 @@ void text_alignment_sample(
     const size_t n_sentences =
         ta->n_clean? ta->n_clean: ta->target->n_sentences;
 
+    printf("1. Model: %d \n", model);
+
     // the fertility distributions (unlike the jump and lexical distributions)
     // are sampled explicitly, and the categorical distributions are fixed
     // throughout the iteration.
@@ -318,7 +321,21 @@ void text_alignment_sample(
     // such word)
     int aa_jp1_table[MAX_SENT_LEN];
     int aa_jp1;
+    
+    FILE *file = NULL;
+    if (model >= 3) {
+            FILE *file = fopen("alignment_scores.txt", "w");
+        if (!file) {
+            perror("Error opening file");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+
+
     for (size_t sent=0; sent<ta->target->n_sentences; sent++) {
+        if (sent > 10) break;
+
         link_t *links = ta->sentence_links[sent];
         // in case this sentence pair should not be aligned, skip it
         if (links == NULL) continue;
@@ -329,21 +346,6 @@ void text_alignment_sample(
         const token *source_tokens = source_sentence->tokens;
         const token *target_tokens = target_sentence->tokens;
 
-        // Allocate memory for AlignmentScores
-        AlignmentScores *alignmentScores = malloc(sizeof(AlignmentScores));
-        if (!alignmentScores) {
-            // handle memory allocation failure
-            exit(EXIT_FAILURE);
-        }
-        // Assuming source_length and target_length are defined and represent the lengths of the respective sentences
-        alignmentScores->total_size = source_length * target_length;
-        alignmentScores->scores = malloc(sizeof(count) * alignmentScores->total_size);
-        if (!alignmentScores->scores) {
-            // handle memory allocation failure
-            free(alignmentScores);
-            exit(EXIT_FAILURE);
-        }
-
         int samples_left = n_samples-1;
         int samplers_left = n_samplers-1;
 
@@ -351,11 +353,24 @@ void text_alignment_sample(
             for (size_t k=0; k<target_length*(source_length+1); k++)
                 acc_ps[k] = (count) 0.0;
         }
-
+        
+        count *alignmentScores = calloc(source_length * target_length, sizeof(count));
+            // malloc(source_length * target_length * sizeof(count));
+            if (!alignmentScores) {
+                // handle memory allocation failure
+                free(alignmentScores);
+                exit(EXIT_FAILURE);
+            }
+        
+        
+        // printf("%ld: %ld %ld\n", sent, source_length, target_length);
+        
+        
         // This is the head of a loop (look for gotos below) which iterates
         // n_samples * n_samplers times, accumulating distributions from the
         // independent samplers.
 resample:;
+
         if (tas != NULL) ta = tas[samplers_left];
         size_t acc_base = 0;
         links = ta->sentence_links[sent];
@@ -476,6 +491,15 @@ resample:;
                     jump1 = MIN(JUMP_ARRAY_LEN-1, jump1+1);
                     jump2 = MAX(0, jump2-1);
                 }
+
+                if (!argmax && model == 3){
+                    for (size_t i=0; i<source_length; i++) {
+                        count p = ps[i] - (i? ps[i-1]: 0.0);
+                        alignmentScores[j * source_length + i] += logf(p/((count)jump_counts[JUMP_SUM]* (count)jump_counts[JUMP_SUM]));
+                        // printf("Sent: [%ld], Score(Source[%zu], Target[%zu]) = [%f] \n", sent, i, j, alignmentScores[j * source_length + i]);
+                    }
+                }
+
                 if (sentence_scores != NULL) {
                     count max_p = 0.0;
                     for (size_t i=0; i<source_length; i++) {
@@ -527,7 +551,6 @@ resample:;
                     count max_p = 0.0;
                     for (size_t i=0; i<source_length; i++) {
                         const count p = ps[i] - (i? ps[i-1]: 0.0);
-                        alignmentScores[j * source_length + i] = p;
                         if (p > max_p) max_p = p;
                     }
                     sentence_scores[sent] += logf(
@@ -654,15 +677,6 @@ resample:;
         if (sentence_scores != NULL)
             sentence_scores[sent] /= (count)target_length;
 
-        for (size_t i = 0; i < source_length; ++i) {
-            for (size_t j = 0; j < target_length; ++j) {
-                count score = alignmentScores->scores[j * source_length + i];
-                printf("Score(Source[%zu], Target[%zu]) = %f\n", i, j, score);
-            }
-        }
-        free(alignmentScores->scores);
-        free(alignmentScores)
-
         if (argmax) {
             if (samplers_left) {
                 samplers_left--;
@@ -673,6 +687,18 @@ resample:;
                 goto resample;
             }
         }
+        if (!argmax && model == 3){
+            for (size_t i = 0; i < source_length; ++i) {
+                for (size_t j = 0; j < target_length; ++j) {
+                    // printf("Score(Source[%zu], Target[%zu]) = %f\n", i, j, alignmentScores[j * source_length + i]);
+                    // break;
+                    count score = alignmentScores[j * source_length + i];
+                    fprintf(file, "Sentence %zu: Source[%zu], Target[%zu] = %f\n", sent, i, j, score);
+                }
+            }
+        }
+
+        free(alignmentScores);
     }
     if (argmax) free(acc_ps);
 }
@@ -1208,10 +1234,10 @@ static void align(
                 seconds() - t0);
 
     t0 = seconds();
-#pragma omp parallel for
+// #pragma omp parallel for
     for (int i=0; i<n_samplers; i++) {
         random_state local_state;
-#pragma omp critical
+// #pragma omp critical
         {
             local_state = random_split_state(&state);
         }
@@ -1227,10 +1253,10 @@ static void align(
                         m, n_iters[m-1]);
             t0 = seconds();
 
-#pragma omp parallel for
+// #pragma omp parallel for
             for (int i=0; i<n_samplers; i++) {
                 random_state local_state;
-#pragma omp critical
+// #pragma omp critical
                 {
                     local_state = random_split_state(&state);
                 }
@@ -1239,6 +1265,7 @@ static void align(
                 text_alignment_make_counts(tas[i]);
 
                 for (int j=0; j<n_iters[m-1]; j++) {
+                    printf("5. Model: %d\n", tas[0]->model);
                     text_alignment_sample(tas[i], &local_state, NULL, NULL, 1);
                 }
             }
@@ -1248,6 +1275,7 @@ static void align(
     }
 
     t0 = seconds();
+    printf("4. Model: %d\n", tas[0]->model);
     text_alignment_sample(tas[0], &state, NULL, tas, n_samplers);
     if (!quiet)
         fprintf(stderr, "Final argmax iteration: %.3f s\n", seconds() - t0);
@@ -1290,6 +1318,7 @@ static void align(
 
         // Switch to whatever model is specified for scoring
         ta->model = score_model;
+        printf("3. Model: %d\n", ta->model);
         text_alignment_sample(ta, &state, scores, NULL, 1);
 
         for (size_t i=0; i<ta->source->n_sentences; i++)
@@ -1390,7 +1419,7 @@ int main(int argc, char *argv[]) {
                 source->vocabulary_size, target->vocabulary_size);
     }
 
-#pragma omp parallel for
+// #pragma omp parallel for
     for (int reverse=0; reverse<=1; reverse++) {
         char *links_filename =
             (reverse? links_filename_rev: links_filename_fwd);
