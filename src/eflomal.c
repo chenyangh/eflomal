@@ -496,7 +496,7 @@ resample:;
                     for (size_t i=0; i<source_length; i++) {
                         count p = ps[i] - (i? ps[i-1]: 0.0);
                         alignmentScores[j * source_length + i] += logf(p/((count)jump_counts[JUMP_SUM]* (count)jump_counts[JUMP_SUM]));
-                        // printf("Sent: [%ld], Score(Source[%zu], Target[%zu]) = [%f] \n", sent, i, j, alignmentScores[j * source_length + i]);
+                        printf("Sent: [%ld], Score(Source[%zu], Target[%zu]) = [%f] \n", sent, i, j, alignmentScores[j * source_length + i]);
                     }
                 }
 
@@ -687,16 +687,16 @@ resample:;
                 goto resample;
             }
         }
-        if (!argmax && model == 3){
-            for (size_t i = 0; i < source_length; ++i) {
-                for (size_t j = 0; j < target_length; ++j) {
-                    // printf("Score(Source[%zu], Target[%zu]) = %f\n", i, j, alignmentScores[j * source_length + i]);
-                    // break;
-                    count score = alignmentScores[j * source_length + i];
-                    fprintf(file, "Sentence %zu: Source[%zu], Target[%zu] = %f\n", sent, i, j, score);
-                }
-            }
-        }
+        // if (!argmax && model == 3){
+        //     for (size_t i = 0; i < source_length; ++i) {
+        //         for (size_t j = 0; j < target_length; ++j) {
+        //             // printf("Score(Source[%zu], Target[%zu]) = %f\n", i, j, alignmentScores[j * source_length + i]);
+        //             // break;
+        //             count score = alignmentScores[j * source_length + i];
+        //             fprintf(file, "Sentence %zu: Source[%zu], Target[%zu] = %f\n", sent, i, j, score);
+        //         }
+        //     }
+        // }
 
         free(alignmentScores);
     }
