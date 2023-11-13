@@ -322,7 +322,6 @@ void text_alignment_sample(
     int aa_jp1_table[MAX_SENT_LEN];
     int aa_jp1;
     
-    FILE *file = NULL;
     if (model >= 3) {
             FILE *file = fopen("alignment_scores.txt", "w");
         if (!file) {
@@ -334,7 +333,7 @@ void text_alignment_sample(
 
 
     for (size_t sent=0; sent<ta->target->n_sentences; sent++) {
-        // if (sent > 10) break;
+        // if (sent > 3) break;
 
         link_t *links = ta->sentence_links[sent];
         // in case this sentence pair should not be aligned, skip it
@@ -687,14 +686,13 @@ resample:;
                 goto resample;
             }
         }
-        // if (!argmax && model == 3){
-        //     for (size_t i = 0; i < source_length; ++i) {
-        //         for (size_t j = 0; j < target_length; ++j) {
-        //             // printf("Score(Source[%zu], Target[%zu]) = %f\n", i, j, alignmentScores[j * source_length + i]);
-        //             // break;
-        //             count score = alignmentScores[j * source_length + i];
-        //             fprintf(file, "Sentence %zu: Source[%zu], Target[%zu] = %f\n", sent, i, j, score);
-        //         }
+        
+        // for (size_t i = 0; i < source_length; ++i) {
+        //     for (size_t j = 0; j < target_length; ++j) {
+        //         // printf("Score(Source[%zu], Target[%zu]) = %f\n", i, j, alignmentScores[j * source_length + i]);
+        //         // break;
+        //         count score = alignmentScores[j * source_length + i];
+        //         fprintf(file, "Sentence %zu: Source[%zu], Target[%zu] = %f\n", sent, i, j, score);
         //     }
         // }
 
