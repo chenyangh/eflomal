@@ -322,7 +322,7 @@ void text_alignment_sample(
     int aa_jp1_table[MAX_SENT_LEN];
     int aa_jp1;
     
-    if (model >= 3) {
+    if (model >= 3 && !argmax) {
             FILE *file = fopen("alignment_scores.txt", "w");
         if (!file) {
             perror("Error opening file");
@@ -353,14 +353,16 @@ void text_alignment_sample(
                 acc_ps[k] = (count) 0.0;
         }
         
-        count *alignmentScores = calloc(source_length * target_length, sizeof(count));
-            // malloc(source_length * target_length * sizeof(count));
-            if (!alignmentScores) {
-                // handle memory allocation failure
-                free(alignmentScores);
-                exit(EXIT_FAILURE);
-            }
-        
+        count *alignmentScores = NULL;
+        if (model >= 3 && !argmax) {
+            count *alignmentScores = calloc(source_length * target_length, sizeof(count));
+                // malloc(source_length * target_length * sizeof(count));
+                if (!alignmentScores) {
+                    // handle memory allocation failure
+                    free(alignmentScores);
+                    exit(EXIT_FAILURE);
+                }
+        }
         
         // printf("%ld: %ld %ld\n", sent, source_length, target_length);
         
@@ -695,8 +697,8 @@ resample:;
         //         fprintf(file, "Sentence %zu: Source[%zu], Target[%zu] = %f\n", sent, i, j, score);
         //     }
         // }
-
-        free(alignmentScores);
+        if (!alignmentScores)
+            free(alignmentScores);
     }
     if (argmax) free(acc_ps);
 }
