@@ -334,7 +334,7 @@ void text_alignment_sample(
 
 
     for (size_t sent=0; sent<ta->target->n_sentences; sent++) {
-        if (sent > 10) break;
+        // if (sent > 10) break;
 
         link_t *links = ta->sentence_links[sent];
         // in case this sentence pair should not be aligned, skip it
