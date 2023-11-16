@@ -117,6 +117,8 @@ def main():
     if any(x is None for x in iters[:args.model]):
         iters = None
 
+    # print('IBM Iterations:', args.iters1, args.iters2, args.iters3)
+    
     aligner = Aligner(
         model=args.model, score_model=args.score_model,
         n_iterations=iters, n_samplers=args.n_samplers,
